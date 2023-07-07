@@ -32,7 +32,23 @@ bool simpleMix(uint8_t &inA,
     bool sign1, sign2;
     setSigns(sign1, sign2, type);
     inA = zeroPoint1 + (((sign1 ? orig1 : -orig1) + (sign2 ? orig2 : -orig2))/2);
-    inB = zeroPoint1 + (((!sign1 ? orig1 : -orig1) + (!sign2 ? orig2 : -orig2))/2);
+    inB = zeroPoint2 + (((!sign1 ? orig1 : -orig1) + (!sign2 ? orig2 : -orig2))/2);
+    return true;
+}
+
+bool maxMix(uint8_t &inA, 
+            uint8_t &inB, 
+            uint8_t &type, 
+            uint8_t zeroPoint1, 
+            uint8_t zeroPoint2)
+{
+    //FIXME
+    int16_t orig1 = inA - zeroPoint1;
+    int16_t orig2 = inB - zeroPoint2;
+    bool sign1, sign2;
+    setSigns(sign1, sign2, type);
+    inA = zeroPoint1 + (((sign1 ? 1 : -1) * orig1 + (sign2 ? 1 : -1) * orig2) );
+    inB = zeroPoint2 + (((!sign1 ? orig1 : -orig1) + (!sign2 ? orig2 : -orig2)) );
     return true;
 }
 
@@ -42,5 +58,29 @@ bool fullThrottleMix(uint8_t &thrIn,
                      uint8_t zeroPointThr, 
                      uint8_t zeroPoint2)
 {
+    //FIXME
+    int16_t origThr = thrIn - zeroPointThr;
+    int16_t orig2 = inB - zeroPoint2;
+    bool sign1, sign2;
+    setSigns(sign1, sign2, type);
+
     return false;
+}
+
+bool dualScrewMix(uint8_t &thrLIn, // Assumed this is the 1 input for throttle
+                  uint8_t &thrRIn, // Only an output
+                  uint8_t &rudIn, 
+                  uint8_t &type, 
+                  uint8_t zeroPointThrL,
+                  uint8_t zeroPointThrR,
+                  uint8_t zeroPointRud)
+{
+    //FIXME
+    int16_t origThrL = thrLIn - zeroPointThrL;
+    int16_t origRud = rudIn - zeroPointRud;
+    bool signThr, signRud;
+    setSigns(signThr, signRud, type);
+    return false;
+
+    return true;
 }
