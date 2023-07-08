@@ -1,86 +1,80 @@
 #include "DynamicsMixingLibrary.h"
 
-#define POS_DML true
-#define NEG_DML false
+// note - all these assume 0 is zero, -100 is +1 and 100 is -1. Please remap inputs accordingly.
 
-bool setSigns(bool &a, bool &b, uint8_t &type)
+// sets directions of each channel from midpoint based on arbitrary type
+// this allows servo reversing in the mixing function
+// choose correct type based on needed functionallity
+bool setSigns(int8_t &a, int8_t &b, uint8_t &type)
 {
     switch (type){
         case 0: 
-            a = POS_DML; b = POS_DML; break;
+            a = 1; b = 1; break;
         case 1:
-            a = POS_DML; b = NEG_DML; break;
+            a = 1; b = -1; break;
         case 3:
-            a = NEG_DML; b = POS_DML; break;
+            a = -1; b = 1; break;
         case 4:
-            a = NEG_DML; b = NEG_DML; break;
+            a = -1; b = -1; break;
         default:
+            a = 0; b = 0; // zero motion should be returned if incorrect type set
             return false;
     }
     return true;
 }
 
 
-bool simpleMix(uint8_t &inA, 
-               uint8_t &inB, 
-               uint8_t &type, 
-               uint8_t zeroPoint1, 
-               uint8_t zeroPoint2)
+bool averageMix(int8_t &in1, 
+                int8_t &in2, 
+                uint8_t &type)
 {
-    int16_t orig1 = inA - zeroPoint1;
-    int16_t orig2 = inB - zeroPoint2;
-    bool sign1, sign2;
-    setSigns(sign1, sign2, type);
-    inA = zeroPoint1 + (((sign1 ? orig1 : -orig1) + (sign2 ? orig2 : -orig2))/2);
-    inB = zeroPoint2 + (((!sign1 ? orig1 : -orig1) + (!sign2 ? orig2 : -orig2))/2);
+    int8_t orig1 = in1;
+    int8_t sign1, sign2; setSigns(sign1, sign2, type);      // set directions of outputs using these variables: -1 & 1 are only values
+    //FIXME
+    in1 = ((sign1 * orig1 + sign2 * in2)/2);
+    in2 = ((-sign1 * orig1 + -sign2 * in2)/2);
     return true;
 }
 
-bool maxMix(uint8_t &inA, 
-            uint8_t &inB, 
-            uint8_t &type, 
-            uint8_t zeroPoint1, 
-            uint8_t zeroPoint2)
+bool maxMix(int8_t &in1, 
+            int8_t &in2, 
+            uint8_t &type)
 {
     //FIXME
-    int16_t orig1 = inA - zeroPoint1;
-    int16_t orig2 = inB - zeroPoint2;
-    bool sign1, sign2;
-    setSigns(sign1, sign2, type);
-    inA = zeroPoint1 + (((sign1 ? 1 : -1) * orig1 + (sign2 ? 1 : -1) * orig2) );
-    inB = zeroPoint2 + (((!sign1 ? orig1 : -orig1) + (!sign2 ? orig2 : -orig2)) );
+    int8_t orig1 = in1;
+    int8_t sign1, sign2;
+    setSigns(sign1, sign2, type);                           // set directions of outputs using these variables: -1 & 1 are only values
+    in1 = min(sign1 * orig1 + sign2 * in2, 100);
+    in2 = min(-sign1 * orig1 + -sign2 * in2, 100);
     return true;
 }
 
-bool fullThrottleMix(uint8_t &thrIn, 
-                     uint8_t &inB, 
-                     uint8_t &type, 
-                     uint8_t zeroPointThr, 
-                     uint8_t zeroPoint2)
+bool fullThrottleMix(int8_t &thrIn, 
+                     int8_t &in2, 
+                     uint8_t &type)
 {
     //FIXME
-    int16_t origThr = thrIn - zeroPointThr;
-    int16_t orig2 = inB - zeroPoint2;
-    bool sign1, sign2;
-    setSigns(sign1, sign2, type);
-
+    int8_t origThr = thrIn;
+    int8_t orig2 = in2;
+    int8_t sign1, sign2; setSigns(sign1, sign2, type);      // set directions of outputs using these variables: -1 & 1 are only values
+    thrIn = min(sign1 * origThr + sign2 * in2, 100);
+    in2 = min((-sign1 * origThr)/2 + (-sign2 * in2)/2, 100);
     return false;
 }
 
-bool dualScrewMix(uint8_t &thrLIn, // Assumed this is the 1 input for throttle
-                  uint8_t &thrRIn, // Only an output
-                  uint8_t &rudIn, 
-                  uint8_t &type, 
-                  uint8_t zeroPointThrL,
-                  uint8_t zeroPointThrR,
-                  uint8_t zeroPointRud)
+bool dualScrewMix(int8_t &thrLIn, // Assumed this is the single input for throttle
+                  int8_t &thrRIn, // Only an output
+                  int8_t &rudIn, 
+                  uint8_t &type,
+                  bool flipDelta)
 {
-    //FIXME
-    int16_t origThrL = thrLIn - zeroPointThrL;
-    int16_t origRud = rudIn - zeroPointRud;
-    bool signThr, signRud;
-    setSigns(signThr, signRud, type);
-    return false;
-
+    float gamma = 1.2;                                                          // exponent for throttle difference calculation
+    int8_t signThr, signRud; setSigns(signThr, signRud, type);                  // set directions of outputs using these variables: -1 & 1 are only values
+    int8_t origRud = rudIn; int8_t origThrL = thrLIn;                           // saves origional values for calculations after overwrite
+    int8_t deltaThrot = max(pow(max(origRud - .5 * origThrL, 0), gamma) - 1, 0);// calculation of individual throttle change
+    deltaThrot *= flipDelta ? -1 : 1;                                           // flips throttle delta if flagged
+    thrRIn = origThrL * signThr - deltaThrot;                                   // write new throttle percentage
+    thrLIn = origThrL * signThr + deltaThrot;
+    rudIn = min(origRud * (2 - origThrL), 1) * signRud;                         // write new rudder percentage
     return true;
 }
