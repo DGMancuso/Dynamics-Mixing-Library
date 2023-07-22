@@ -68,10 +68,15 @@ bool dualScrewMix(int8_t &thrLIn, // Assumed this is the single input for thrott
     float gamma = 1.2;                                                          // exponent for throttle difference calculation
     int8_t signThr, signRud; setSigns(signThr, signRud, type);                  // set directions of outputs using these variables: -1 & 1 are only values
     int8_t origRud = rudIn; int8_t origThrL = thrLIn;                           // saves origional values for calculations after overwrite
-    int8_t deltaThrot = max(pow(max(origRud - .5 * origThrL, 0), gamma) - 1, 0);// calculation of individual throttle change
+    int8_t deltaThrot = max(2*pow(max(abs(origRud) - .5 * abs(origThrL) - 50, 0), gamma)/pow(100,gamma-1), 0);// calculation of individual throttle change
+    rudIn = min(abs(origRud) * (210 - abs(origThrL))/100, 100) * signRud; 
+    if (origRud < 0)
+    { 
+        deltaThrot *= -1;
+        rudIn *= -1;
+    }
     deltaThrot *= flipDelta ? -1 : 1;                                           // flips throttle delta if flagged
     thrRIn = origThrL * signThr - deltaThrot;                                   // write new throttle percentage
-    thrLIn = origThrL * signThr + deltaThrot;
-    rudIn = min(origRud * (2 - origThrL), 1) * signRud;                         // write new rudder percentage
+    thrLIn = origThrL * signThr + deltaThrot;                       // write new rudder percentage
     return true;
 }
