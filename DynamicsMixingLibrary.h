@@ -31,4 +31,13 @@ bool dualScrewMix(int8_t &thrLIn,
                   uint8_t type, 
                   bool flipDelta = false); 
 
+class LevelerClass
+{
+private:
+    /* data */
+public:
+    LevelerClass(int p, int i, int d);
+    ~LevelerClass();
+};
+
 #endif // DYNAMICS_MIXING_LIBRARY

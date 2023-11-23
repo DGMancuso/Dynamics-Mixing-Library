@@ -80,3 +80,8 @@ bool dualScrewMix(int8_t &thrLIn, // Assumed this is the single input for thrott
     thrLIn = origThrL * signThr + deltaThrot;                       // write new rudder percentage
     return true;
 }
+
+LevelerClass::LevelerClass(int p, int i, int d)
+{
+}
+
